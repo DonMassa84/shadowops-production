@@ -1,6 +1,6 @@
 # EVA-Mirror Recovery Classification
 
-Status: RECOVERY_SET_CREATED
+Status: ARCHIVE_READY_AFTER_RECOVERY_REVIEW
 
 ## Decision
 
@@ -32,10 +32,12 @@ Status: RECOVERY_SET_CREATED
 
 ### b780be7 — EVA autonomy mode
 - `modules/run_prompt.py` — SOURCE/PROTOTYPE — RECOVERED_FOR_REVIEW
-- `agents/decision_core.ts` — SOURCE candidate — requires separate content review
-- `agents/observer_agent.ts` — SOURCE candidate — requires separate content review
-- `modules/autonomous_loop.py` — SOURCE candidate — requires separate content review
-- `modules/executor_module.py` — SOURCE candidate — requires separate content review
+- `agents/decision_core.ts` — EMPTY_FILE — REJECT
+- `agents/observer_agent.ts` — EMPTY_FILE — REJECT
+- `modules/autonomous_loop.py` — EMPTY_FILE — REJECT
+- `modules/executor_module.py` — EMPTY_FILE — REJECT
+
+All four previously unresolved autonomy candidates resolve to the Git empty-blob SHA `e69de29bb2d1d6434b8b29ae775ad8c2e48c5391`; they contain no source to preserve.
 
 ### 7b6a0dd — AutoPush bundle
 Mixed commit; do not cherry-pick wholesale.
@@ -56,7 +58,7 @@ Heavily contaminated with `.venv`, `site-packages`, `__pycache__` and compiled P
 
 ## Recovery branch
 
-A safe recovery branch was created in `DonMassa84/EVA`:
+A safe recovery branch exists in `DonMassa84/EVA`:
 
 `migration/eva-mirror-unique-source`
 
@@ -67,13 +69,23 @@ Recovered into `legacy/mirror-recovered/`:
 - `run_prompt.py`
 - recovery README with explicit rejection list
 
-These files are isolated and are not active runtime code.
+These files are isolated and are not active runtime code. Draft PR: `DonMassa84/EVA#1`.
 
-## Remaining gate before EVA-Mirror can be archived
+## Archive decision
 
-1. Inspect four source candidates with missing patches from `b780be7`.
-2. Search mirror-only history for other source/config files not already in EVA.
-3. Decide whether prompt JSON material belongs in `eva-workflows`, `eva-agents`, or a separate prompt library.
-4. Review current EVA `.gitignore` against `.venv`, `venv`, `__pycache__`, `*.pyc`, logs and ZIP exports.
-5. Merge only reviewed recovery material.
-6. Record final archive decision.
+`EVA-Mirror` is now technically `ARCHIVE_READY`, subject to one operational condition: keep Draft PR #1 or otherwise retain the isolated recovered source candidates before archiving the mirror.
+
+The mirror is not required as an active core repository because:
+1. canonical development continues from `EVA`;
+2. shared history is already present in `EVA`;
+3. identified unique source candidates have been isolated for review;
+4. unresolved autonomy candidates were verified as empty files;
+5. unsafe CI, caches, environments, generated logs and runtime state were explicitly rejected.
+
+## Optional follow-up, not an archive blocker
+
+- decide whether prompt JSON examples deserve a dedicated `eva-prompts`/knowledge location;
+- harden and selectively promote recovered prototypes only after tests/security review;
+- ensure canonical EVA `.gitignore` excludes `.venv/`, `venv/`, `__pycache__/`, `*.pyc`, logs and generated ZIPs.
+
+No repository content should be deleted as a substitute for GitHub's archive setting.
