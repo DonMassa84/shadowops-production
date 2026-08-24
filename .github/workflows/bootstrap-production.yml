@@ -1,0 +1,89 @@
+name: Bootstrap ShadowOps Production
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bootstrap-production.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch pinned ShadowOps production baseline
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          SOURCE=/tmp/ihk-document-ai
+          rm -rf "$SOURCE"
+          git clone --filter=blob:none --no-checkout https://github.com/DonMassa84/ihk-document-ai.git "$SOURCE"
+          git -C "$SOURCE" fetch --depth 1 origin 98d5aea4cb95cd2264670c87f0180e5a77941b17
+          git -C "$SOURCE" checkout --detach 98d5aea4cb95cd2264670c87f0180e5a77941b17
+
+      - name: Copy production scope only
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          SOURCE=/tmp/ihk-document-ai
+          rm -rf shadowops
+          mkdir -p shadowops docs .github/workflows
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '*.env' \
+            --exclude '.env*' \
+            --exclude 'tmp/' \
+            --exclude '_build/' \
+            --exclude 'deps/' \
+            "$SOURCE/shadowops/" shadowops/
+
+          cp "$SOURCE/docs/AI_GOVERNANCE.md" docs/AI_GOVERNANCE.md
+          cp "$SOURCE/.github/workflows/shadowops-production-acceptance.yml" .github/workflows/production-acceptance.yml
+
+          cat > docs/SOURCE_BASELINE.md <<'EOF'
+          # Source Baseline
+
+          Repository: `DonMassa84/ihk-document-ai`
+
+          Pinned commit: `98d5aea4cb95cd2264670c87f0180e5a77941b17`
+
+          Source branch at selection time: `hardening/shadowops-production-ready`
+
+          This repository intentionally contains only the ShadowOps production scope and selected governance / acceptance artifacts.
+          EOF
+
+      - name: Reject obvious secrets and private runtime data
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if find shadowops docs -type f \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.key' -o -name 'id_rsa*' -o -name 'id_ed25519*' \) -print -quit | grep -q .; then
+            echo 'BOOTSTRAP=FAIL reason=forbidden_secret_file'
+            exit 1
+          fi
+          if find shadowops -type f \( -name '*.sqlite' -o -name '*.db' \) -print -quit | grep -q .; then
+            echo 'BOOTSTRAP=FAIL reason=runtime_database_detected'
+            exit 1
+          fi
+          echo 'BOOTSTRAP_SCOPE=PASS'
+
+      - name: Commit production baseline
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'shadowops-production-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add shadowops docs .github/workflows/production-acceptance.yml
+          if git diff --cached --quiet; then
+            echo 'BOOTSTRAP_COMMIT=SKIP reason=no_changes'
+            exit 0
+          fi
+          git commit -m 'Import pinned ShadowOps production baseline'
+          git push origin HEAD:main
+          echo 'BOOTSTRAP_COMMIT=PASS'
